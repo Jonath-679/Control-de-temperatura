@@ -6,13 +6,14 @@
 
 // PINES
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
-const int sensor = A0; //potenciometro
+const int sensor = A0;
 const int motor = 11;
 
 // Variables globales
-float temperatura = 0;
-int potencia = 0; //0-100%
-int pwm = 0;
+double temperatura;
+float resistenciaSensor;
+int potencia;
+int pwm;
 
 void setup() {
     // Configuracion general
@@ -20,7 +21,7 @@ void setup() {
     pinMode(sensor, INPUT);
     pinMode(motor, OUTPUT);
 
-    // Configuracion del display | La direccion I2C es 0x3C (o si no, 0x3D)
+    // Configuracion del display | Direccion I2C = 0x3C
     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Inicializa el display (*si falla, el programa "se detiene")
         Serial.println(F("Fallo al encontrar el display OLED"));
         for(;;); 
@@ -31,7 +32,7 @@ void setup() {
 }
 
 // Muestra los datos del sistema en el display
-void mostrarDatos(float temperatura, float ohms, int pwm, int potencia) {
+void mostrarDatos(double temperatura, float resistenciaSensor, int pwm, int potencia) {
     display.clearDisplay();
     // Temperatura
     display.setCursor(0, 0);
@@ -40,9 +41,9 @@ void mostrarDatos(float temperatura, float ohms, int pwm, int potencia) {
     display.print(" C");
     // Ohms
     display.setCursor(0, 16);
-    display.print("Sensor: ");
-    display.print(ohms, 1);
-    display.print(" Ohm");
+    display.print("Resistencia: ");
+    display.print(resistenciaSensor, 1);
+    display.print(" Ohms");
     // PWM (0, 255)
     display.setCursor(0, 32);
     display.print("PWM: ");
@@ -58,18 +59,40 @@ void mostrarDatos(float temperatura, float ohms, int pwm, int potencia) {
 }
 
 void loop() {
-    // Se simula el sensor con una relacion lineal | 0V = 0- grados | 5v = 100+ Grados
-    temperatura = map(analogRead(sensor), 0, 1023, 0, 100);
-    pwm = map(temperatura, 0, 100, 0, 255);
-    potencia = temperatura; //ya que la temperatura va de 0 a 100 (en este caso)
-    mostrarDatos(temperatura, 0.0, pwm, potencia);
+    // Calculo de temperatura en base al voltage
+    temperatura = 27.77777778 * analogRead(sensor);
+
+    // Proteccion de rango (0-100)
+    if(temperatura < 0.0) temperatura = 0.0;
+    else if(temperatura > 100.0) temperatura = 100.0;
+    
+    // Calculo de la potencia en base a discretizar la temp (paso 20).
+    if(temperatura >= 98.0) potencia = 100;
+    else if(temperatura >= 80.0) potencia = 80;
+    else if(temperatura >= 60.0) potencia = 60;
+    else if(temperatura >= 40.0) potencia = 40;
+    else if(temperatura >= 20.0) potencia = 20;
+    else potencia = 0;
+
+    // Calculo de Resistencia y pwm
+    resistenciaSensor = 100 + (0.385*int(temperatura));
+    pwm = map(potencia, 0, 100, 0, 255);
+
+    // Enviar datos al display
+    mostrarDatos(temperatura, resistenciaSensor, pwm, potencia);
+
+    // Enviar pwm al motor
     analogWrite(motor, pwm);
     delay(100);
 }
 
-/*
-NOATAS:
-- El .hex que necesita el arduino del proteus se encuentra en: .pio/build/nanoatmega328new/firmware.hex | previamente el codigo nececita compilarse
-- Si da error al cargar el codigo al arduino, utilizar el bootloader old (quitando las extenciones de "new" en el archivo .platformio.ini)
-*/
+// El .hex se encuentra en: .pio/build/nanoatmega328new/firmware.hex | previamente el codigo nececita compilarse
+// Si da error al cargar el codigo al arduino, utilizar el bootloader old (quitando las extenciones de "new" en el archivo .platformio.ini)
+
+// Temperatura | Ohms     | Volts
+//-------------------------------
+// 0           | 100      | 0V
+// 1           | 100.385  | 0.036V
+// 100         | 138.5    | 3.7V
+// 100+        | 138.5+   | 3.7V
 
