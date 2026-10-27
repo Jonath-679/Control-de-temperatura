@@ -60,7 +60,7 @@ void mostrarDatos(double temperatura, float resistenciaSensor, int pwm, int pote
 
 void loop() {
     // Calculo de temperatura en base al voltage
-    temperatura = 27.77777778 * analogRead(sensor);
+    temperatura = 27.77777778 * (analogRead(sensor) * (5.0/1023.0));
 
     // Proteccion de rango (0-100)
     if(temperatura < 0.0) temperatura = 0.0;
