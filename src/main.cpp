@@ -14,6 +14,7 @@ double temperatura;
 float resistenciaSensor;
 int potencia;
 int pwm;
+unsigned long sum; //sumatoria para promediar temperatura
 
 void setup() {
     // Configuracion general
@@ -29,6 +30,7 @@ void setup() {
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
     display.setTextSize(1);
+    display.cp437(true);
 }
 
 // Muestra los datos del sistema en el display
@@ -42,13 +44,14 @@ void mostrarDatos(double temperatura, float resistenciaSensor, int pwm, int pote
     // Ohms
     display.setCursor(0, 16);
     display.print("Resistencia: ");
-    display.print(resistenciaSensor, 1);
-    display.print(" Ohms");
+    display.print(resistenciaSensor, 0);
+    display.print(" ");
+    display.write(234); // Imprime el símbolo Ω
     // PWM (0, 255)
     display.setCursor(0, 32);
     display.print("PWM: ");
     display.print(pwm);
-    display.print(" / 255");
+    display.print("/255");
     // Potencia (0-100%)
     display.setCursor(0, 48);
     display.print("Potencia: ");
@@ -60,7 +63,12 @@ void mostrarDatos(double temperatura, float resistenciaSensor, int pwm, int pote
 
 void loop() {
     // Calculo de temperatura en base al voltage
-    temperatura = 27.77777778 * (analogRead(sensor) * (5.0/1023.0));
+    sum = 0;
+    for(int i=0; i<50; i++) {
+        sum += analogRead(sensor);
+        delay(1);
+    }
+    temperatura = 27.77777778 * ((sum/50.0) * (5.0/1023.0));
 
     // Proteccion de rango (0-100)
     if(temperatura < 0.0) temperatura = 0.0;
@@ -83,7 +91,7 @@ void loop() {
 
     // Enviar pwm al motor
     analogWrite(motor, pwm);
-    delay(100);
+    delay(50);
 }
 
 // El .hex se encuentra en: .pio/build/nanoatmega328new/firmware.hex | previamente el codigo nececita compilarse
